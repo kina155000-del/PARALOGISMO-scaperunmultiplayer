@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PARALOGISMO-scaperun</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #0a0806;
+    font-family: system-ui, "Segoe UI", Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #1a120c 0%, #0a0806 70%);
+  }
+  .card {
+    width: min(420px, 94vw);
+    padding: 36px 28px 28px;
+    text-align: center;
+    background-image: url('assets/ui/pergamino.png');
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #5c3d1e;
+    box-shadow: 0 16px 48px rgba(0,0,0,.75);
+  }
+  h1 {
+    color: #fff;
+    font-size: clamp(16px, 4.2vw, 24px);
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 8px #000;
+    margin-bottom: 6px;
+  }
+  .sub {
+    color: #f5e6c8;
+    font-size: 13px;
+    margin-bottom: 14px;
+    text-shadow: 0 1px 4px #000;
+  }
+  .mode-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: 2px solid #6a5420;
+    background: rgba(0,0,0,.4);
+    color: #ddd;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .mode-btn.active {
+    border-color: #ffe566;
+    color: #fff;
+    background: rgba(0,0,0,.65);
+    box-shadow: 0 0 12px rgba(201,162,39,.35);
+  }
+  .save-info {
+    color: #fff;
+    font-size: 12px;
+    margin-bottom: 12px;
+    min-height: 1.2em;
+    text-shadow: 0 1px 3px #000;
+  }
+  .btns { display: flex; flex-direction: column; gap: 10px; }
+  button.btn {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 12px 18px;
+    border: 2px solid #c9a227;
+    background: rgba(0,0,0,.5);
+    cursor: pointer;
+    text-shadow: 0 1px 4px #000;
+    font-family: inherit;
+  }
+  button.btn:hover { background: rgba(0,0,0,.7); border-color: #ffe566; }
+  button.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  #file-load { display: none; }
+  .hint {
+    margin-top: 12px;
+    font-size: 11px;
+    color: #e8d9b0;
+    text-shadow: 0 1px 3px #000;
+    line-height: 1.35;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>PARALOGISMO-scaperun</h1>
+    <p class="sub">Escape de la mazmorra · Falacias lógicas</p>
+    <p class="save-info" id="save-info"></p>
+    <div class="btns">
+      <button type="button" class="btn" id="btn-iniciar">Nueva partida (solo)</button>
+      <button type="button" class="btn" id="btn-host">Crear sala multijugador</button>
+      <button type="button" class="btn" id="btn-join">Unirse a sala…</button>
+      <button type="button" class="btn" id="btn-continuar" disabled>Continuar</button>
+      <button type="button" class="btn" id="btn-cargar">Cargar archivo…</button>
+      <input type="file" id="file-load" accept=".json,application/json" />
+    </div>
+    <p class="hint" style="margin-top:12px;font-size:11px;color:#e8d9b0;text-shadow:0 1px 3px #000">
+      Multijugador: el host crea sala y comparte el código de 6 letras.
+    </p>
+  </div>
+  <script>
+    var LS_KEY = 'paralogismo_save_level';
+
+    function goPlay(level, mpMode, mpCode) {
+      level = Math.max(1, parseInt(level, 10) || 1);
+      try {
+        sessionStorage.setItem('mazmorra_music', '1');
+        sessionStorage.setItem('paralogismo_start_level', String(level));
+        sessionStorage.setItem('paralogismo_mode', 'pc');
+        localStorage.setItem(LS_KEY, String(level));
+        if (mpMode) {
+          sessionStorage.setItem('paralogismo_mp_mode', mpMode);
+          if (mpCode) sessionStorage.setItem('paralogismo_mp_code', String(mpCode).toUpperCase());
+          else sessionStorage.removeItem('paralogismo_mp_code');
+          var nom = prompt('Tu nombre en la partida:', 'Jugador');
+          if (nom) sessionStorage.setItem('paralogismo_mp_name', nom.slice(0, 16));
+        } else {
+          sessionStorage.removeItem('paralogismo_mp_mode');
+          sessionStorage.removeItem('paralogismo_mp_code');
+          sessionStorage.removeItem('paralogismo_mp_name');
+        }
+      } catch (e) {}
+      function nav() { window.location.href = 'juego.html'; }
+      try {
+        var a = new Audio('assets/music/fondo.mp3');
+        a.loop = true; a.volume = 0.45;
+        a.play().then(function () { a.pause(); a.currentTime = 0; nav(); }).catch(nav);
+        setTimeout(nav, 900);
+      } catch (e) { nav(); }
+    }
+
+    function readLocalLevel() {
+      try {
+        var n = parseInt(localStorage.getItem(LS_KEY), 10);
+        return n >= 1 ? n : null;
+      } catch (e) { return null; }
+    }
+    function refreshUI() {
+      var n = readLocalLevel();
+      var btn = document.getElementById('btn-continuar');
+      var info = document.getElementById('save-info');
+      if (n) {
+        btn.disabled = false;
+        btn.textContent = 'Continuar (nivel ' + n + ')';
+        info.textContent = 'Guardado local: nivel ' + n;
+      } else {
+        btn.disabled = true;
+        btn.textContent = 'Continuar (sin partida)';
+        info.textContent = 'Sin partida guardada';
+      }
+    }
+    document.getElementById('btn-iniciar').onclick = function () { goPlay(1, null); };
+    document.getElementById('btn-host').onclick = function () { goPlay(1, 'host'); };
+    document.getElementById('btn-join').onclick = function () {
+      var code = prompt('Código de sala (6 letras):', '');
+      if (!code || String(code).trim().length < 4) {
+        alert('Código no válido');
+        return;
+      }
+      goPlay(1, 'join', String(code).trim());
+    };
+    document.getElementById('btn-continuar').onclick = function () {
+      var n = readLocalLevel(); if (n) goPlay(n, null);
+    };
+    document.getElementById('btn-cargar').onclick = function () {
+      document.getElementById('file-load').click();
+    };
+    document.getElementById('file-load').onchange = function (ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var data = JSON.parse(reader.result);
+          var lvl = parseInt(data.level, 10);
+          if (!(lvl >= 1)) throw new Error('bad');
+          goPlay(lvl);
+        } catch (err) {
+          alert('Archivo de guardado no válido');
+        }
+      };
+      reader.readAsText(file);
+    };
+    refreshUI();
+  </script>
+</body>
+</html>

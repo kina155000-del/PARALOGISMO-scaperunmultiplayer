@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>PARALOGISMO-scaperun</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700&family=IM+Fell+English:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+
+<style>
+@font-face {
+  font-family: 'Tipo1';
+  src: url('assets/ui/fonts/tipografia1.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Tipo2';
+  src: url('assets/ui/fonts/tipografia2.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Tipo3';
+  src: url('assets/ui/fonts/tipografia3.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+</style>
+
+<script>
+// Errores visibles en móvil (pantalla negra = fallo JS silencioso)
+window.__showErr = function (msg) {
+  try {
+    var el = document.getElementById('boot-error');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'boot-error';
+      el.setAttribute('style',
+        'position:fixed;inset:0;z-index:99999;background:#100808;color:#ffe0e0;' +
+        'font:14px/1.45 system-ui,sans-serif;padding:20px;overflow:auto;white-space:pre-wrap;');
+      document.body.appendChild(el);
+    }
+    el.textContent = (el.textContent ? el.textContent + '\n\n' : '') + String(msg);
+  } catch (e) {}
+};
+window.addEventListener('error', function (ev) {
+  window.__showErr('ERROR: ' + (ev.message || ev) +
+    (ev.filename ? '\n' + ev.filename + ':' + ev.lineno : ''));
+});
+window.addEventListener('unhandledrejection', function (ev) {
+  var msg = String((ev.reason && (ev.reason.message || ev.reason)) || ev.reason || '');
+  // No son errores fatales: el juego sigue
+  if (/Pointer Lock|pointerlock|user gesture|Fullscreen|fullscreen/i.test(msg)) {
+    console.warn('[ignorado]', msg);
+    return;
+  }
+  window.__showErr('PROMISE: ' + msg);
+});
+</script>
+</head>
+<body>
+<div id="crosshair"></div>
+
+<div id="hide-vision"></div>
+<div id="danger-pulse"></div>
+<div id="jumpscare" aria-hidden="true">
+  <div class="js-flash"></div>
+  <div class="js-vignette"></div>
+  <div class="js-face">
+    <div class="js-eye left"></div>
+    <div class="js-eye right"></div>
+    <div class="js-mouth"></div>
+  </div>
+  <div class="js-noise"></div>
+</div>
+
+<div id="death-overlay">
+    <div class="death-card">
+        <h1>ATRAPADO</h1>
+        <p>Los monstruos te encontraron</p>
+        <div class="death-buttons">
+            <button type="button" class="menu-btn revive" id="btn-revive">Revivir</button>
+            <button type="button" class="menu-btn menu-btn-danger restart" id="btn-restart">Reiniciar</button>
+        </div>
+    </div>
+</div>
+
+<div id="interaction-prompt">
+    <div class="prompt-label"><span id="prompt-name">Magic Key</span> <kbd>E</kbd></div>
+    <div class="collect-bar-bg"><div class="collect-bar-fill" id="collect-bar-fill"></div></div>
+</div>
+
+<div id="stun-indicator">
+    MONSTRUO PARALIZADO
+</div>
+
+<div id="hud-top-left">
+    <div class="hud-scroll" id="level-scroll">
+        <div class="scroll-ornament">✦</div>
+        <div class="scroll-label">Nivel</div>
+        <div class="scroll-row">
+            <div class="scroll-value" id="level-num">1</div>
+            <div class="lock-stack">
+                <span id="key-mini-count" class="key-mini">0/10</span>
+                <img id="door-lock-icon" class="door-lock" src="assets/ui/lock.png" alt="" />
+            </div>
+        </div>
+        <div class="scroll-ornament">✦</div>
+    </div>
+    <div id="exit-badge" class="hidden-exit" aria-hidden="true">
+        <span id="exit-status-icon"></span>
+        <span id="exit-status-text"></span>
+    </div>
+    <span id="mode-text" style="display:none"></span>
+</div>
+
+<div id="oculto-text">OCULTO</div>
+
+
+<div id="hud-top-right">
+    <div id="stamina-container">
+        <div class="stamina-title">
+            <span>Vigor</span>
+            <span id="stamina-text">100%</span>
+        </div>
+        <div class="stamina-bar-wrap">
+            <div class="stamina-bar-bg">
+                <div class="stamina-bar-fill" id="stamina-fill"></div>
+            </div>
+            <img class="stamina-pan" src="assets/textures/pan.png" alt="" />
+        </div>
+    </div>
+
+    <div id="battery-container">
+        <div class="battery-title">
+            <span>Carbón</span>
+            <span id="battery-text">5 / 5</span>
+        </div>
+        <div class="coal-bar-wrap">
+            <img src="assets/textures/carbon.png" class="coal-icon" alt="" />
+            <div class="coal-bar-bg">
+                <div class="coal-bar-fill" id="coal-bar-fill"></div>
+            </div>
+        </div>
+        <div id="flashlight-status">Farol: APAGADO [R]</div>
+    </div>
+</div>
+
+<div id="notification-banner">
+    <h2 id="notif-title">¡NIVEL COMPLETADO!</h2>
+    <p id="notif-sub">Generando nueva mazmorra...</p>
+</div>
+
+<div id="radar-container">
+    <img id="compass-img" src="assets/ui/brujula.png" alt="" />
+    <div id="radar-arrow">
+        <div class="arrow-head"></div>
+        <div class="arrow-shaft"></div>
+        <div class="arrow-dot"></div>
+    </div>
+    <div id="radar-n">N</div>
+</div>
+
+<!-- Menú pausa (Q) -->
+<div id="pause-menu" class="menu-overlay">
+    <div class="menu-card">
+        <h2 class="menu-title">PAUSA</h2>
+        <p class="menu-sub">Elige una opción</p>
+        <button type="button" class="menu-btn" id="btn-continue">Continuar</button>
+        <button type="button" class="menu-btn" id="btn-save">Guardar nivel</button>
+        <button type="button" class="menu-btn" id="btn-mute">Sonido: ON</button>
+        <button type="button" class="menu-btn" id="btn-pause-restart">Reiniciar</button>
+        <button type="button" class="menu-btn" id="btn-quit">Menú inicio</button>
+    </div>
+</div>
+
+
+<script src="js/config.js"></script>
+<script src="js/falacias.js"></script>
+<script src="js/multiplayer.js"></script>
+<script src="js/materials.js"></script>
+<script src="js/models.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/monsters.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
